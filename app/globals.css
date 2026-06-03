@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-display: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+  --font-body: "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --grain: repeating-linear-gradient(
+      90deg,
+      rgba(16, 20, 17, 0.018) 0,
+      rgba(16, 20, 17, 0.018) 1px,
+      transparent 1px,
+      transparent 26px
+    ),
+    linear-gradient(135deg, rgba(247, 243, 234, 0.98), rgba(232, 236, 223, 0.95));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--grain);
+  color: #101411;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(178, 93, 61, 0.35);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(178, 93, 61, 0.22);
+}
+
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.number-input {
+  appearance: textfield;
+}
