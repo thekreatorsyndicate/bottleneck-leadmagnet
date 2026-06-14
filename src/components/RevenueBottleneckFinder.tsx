@@ -219,14 +219,59 @@ function SetupQuestionnaire({
   salesMotion: SalesMotion;
   onPricingModelChange: (value: PricingModel) => void;
   onSalesMotionChange: (value: SalesMotion) => void;
-  onComplete: () => void;
+  onComplete: (goalMrr: string) => void;
 }) {
-  const [step, setStep] = useState<"salesMotion" | "pricingModel">(
+  const [step, setStep] = useState<"salesMotion" | "pricingModel" | "goalMrr">(
     "salesMotion",
   );
+  const [localGoalMrr, setLocalGoalMrr] = useState("50000");
+  const stepNumber = step === "salesMotion" ? 1 : step === "pricingModel" ? 2 : 3;
+  const progress = step === "salesMotion" ? 33 : step === "pricingModel" ? 66 : 100;
+  const question =
+    step === "salesMotion"
+      ? "How do people buy from you?"
+      : step === "pricingModel"
+        ? "How is the core offer priced?"
+        : "What's your monthly revenue goal?";
+  const support =
+    step === "salesMotion"
+      ? "Choose the path that best matches how new revenue usually happens today."
+      : step === "pricingModel"
+        ? "This lets the diagnostic compare your revenue against the right funnel model."
+        : "This helps us back-calculate the leads, conversions, and retention you need to hit your target.";
+  const options =
+    step === "salesMotion"
+      ? [
+          {
+            label: "Through sales calls",
+            value: "salesCall" as const,
+            description:
+              "Prospects book a call, attend, and become clients after a conversation.",
+          },
+          {
+            label: "Without sales calls",
+            value: "selfServe" as const,
+            description:
+              "People buy from a page, checkout, webinar, email, or automated funnel.",
+          },
+        ]
+      : [
+          {
+            label: "One-time offer",
+            value: "oneTime" as const,
+            description:
+              "A single payment, pay-in-full program, course, sprint, or package.",
+          },
+          {
+            label: "Monthly program",
+            value: "recurring" as const,
+            description:
+              "A membership, retainer, continuity program, subscription, or recurring offer.",
+          },
+        ];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex items-center justify-between border-b border-ink/12 pb-5">
         <div className="flex items-center gap-4">
           <AgencyMark
@@ -242,124 +287,108 @@ function SetupQuestionnaire({
             </p>
           </div>
         </div>
-        <p className="text-sm font-extrabold text-moss">
-          {step === "salesMotion" ? "1/2" : "2/2"}
-        </p>
+        <div className="text-right">
+          <p className="text-sm font-extrabold text-moss">
+            {stepNumber}/3
+          </p>
+          <p className="mt-1 hidden text-xs font-bold text-moss/70 sm:block">
+            Setup takes 20 seconds
+          </p>
+        </div>
       </header>
 
-      <section className="flex flex-1 items-center py-10">
-        <div className="w-full">
-          <div className="mb-8 h-1 bg-ink/10">
+      <section className="flex flex-1 items-start justify-center pt-10 sm:pt-14 lg:pt-16">
+        <div className="w-full max-w-4xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-copper">
+              Revenue diagnostic setup
+            </p>
+            <h1 className="mt-4 font-display text-5xl font-bold leading-[0.96] text-ink sm:text-6xl">
+              {question}
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base font-bold leading-7 text-moss">
+              {support}
+            </p>
+          </div>
+
+          <div className="mx-auto mt-9 max-w-2xl">
+            <div className="mb-6 h-1 bg-ink/10">
             <div
               className="h-full bg-copper transition-all"
-              style={{ width: step === "salesMotion" ? "50%" : "100%" }}
+                style={{ width: `${progress}%` }}
             />
           </div>
 
-          {step === "salesMotion" ? (
-            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
-              <div>
-                <p className="text-xs font-extrabold uppercase text-copper">
-                  First, your sales motion
-                </p>
-                <h1 className="mt-4 font-display text-5xl font-bold leading-none text-ink sm:text-7xl">
-                  How do people buy from you?
-                </h1>
-              </div>
-              <div className="grid gap-4">
-                {[
-                  {
-                    label: "Through sales calls",
-                    value: "salesCall" as const,
-                    description:
-                      "Prospects book a call, attend, and become clients after a conversation.",
-                  },
-                  {
-                    label: "Without sales calls",
-                    value: "selfServe" as const,
-                    description:
-                      "People buy from a page, checkout, webinar, email, or automated funnel.",
-                  },
-                ].map((option) => (
-                  <button
-                    className={`border p-6 text-left transition hover:border-copper hover:bg-paper ${
-                      salesMotion === option.value
-                        ? "border-ink bg-paper shadow-lifted"
-                        : "border-ink/12 bg-paper/70"
-                    }`}
-                    key={option.value}
-                    onClick={() => {
-                      onSalesMotionChange(option.value);
-                      setStep("pricingModel");
-                    }}
-                    type="button"
-                  >
-                    <span className="block text-2xl font-extrabold text-ink">
-                      {option.label}
-                    </span>
-                    <span className="mt-3 block text-base font-semibold leading-7 text-moss">
-                      {option.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
-              <div>
-                <p className="text-xs font-extrabold uppercase text-copper">
-                  Next, your offer model
-                </p>
-                <h1 className="mt-4 font-display text-5xl font-bold leading-none text-ink sm:text-7xl">
-                  How is the core offer priced?
-                </h1>
+            {step === "goalMrr" ? (
+              <div className="mx-auto max-w-sm text-center">
+                <div className="flex items-center justify-center border-b border-ink/20">
+                  <span className="text-3xl font-extrabold text-moss">$</span>
+                  <input
+                    className="number-input h-16 w-full bg-transparent text-center text-3xl font-extrabold text-ink placeholder:text-ink/25"
+                    inputMode="decimal"
+                    min={0}
+                    onChange={(e) => setLocalGoalMrr(e.target.value)}
+                    placeholder="50000"
+                    type="number"
+                    value={localGoalMrr}
+                    autoFocus
+                  />
+                </div>
+                <p className="mt-3 text-sm font-bold text-ink/50">Your ideal monthly recurring revenue target</p>
                 <button
-                  className="mt-6 text-sm font-extrabold text-moss transition hover:text-copper"
-                  onClick={() => setStep("salesMotion")}
+                  className="mt-8 flex min-h-14 w-full items-center justify-center bg-ink px-6 text-base font-extrabold text-paper transition hover:bg-spruce"
+                  onClick={() => onComplete(localGoalMrr)}
                   type="button"
                 >
-                  Back to sales motion
+                  Continue to inputs
                 </button>
               </div>
-              <div className="grid gap-4">
-                {[
-                  {
-                    label: "One-time offer",
-                    value: "oneTime" as const,
-                    description:
-                      "A single payment, pay-in-full program, course, sprint, or package.",
-                  },
-                  {
-                    label: "Monthly program",
-                    value: "recurring" as const,
-                    description:
-                      "A membership, retainer, continuity program, subscription, or recurring offer.",
-                  },
-                ].map((option) => (
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {options.map((option) => (
+                    <button
+                      className={`min-h-56 border p-6 text-center transition duration-200 hover:-translate-y-0.5 hover:border-copper hover:bg-paper active:translate-y-0 ${
+                        (step === "salesMotion" && salesMotion === option.value) ||
+                        (step === "pricingModel" && pricingModel === option.value)
+                          ? "border-ink bg-paper shadow-lifted"
+                          : "border-ink/12 bg-paper/72"
+                      }`}
+                      key={option.value}
+                      onClick={() => {
+                        if (step === "salesMotion") {
+                          onSalesMotionChange(option.value as SalesMotion);
+                          setStep("pricingModel");
+                          return;
+                        }
+
+                        onPricingModelChange(option.value as PricingModel);
+                        setStep("goalMrr");
+                      }}
+                      type="button"
+                    >
+                      <span className="block text-2xl font-extrabold text-ink">
+                        {option.label}
+                      </span>
+                      <span className="mx-auto mt-3 block max-w-xs text-base font-semibold leading-7 text-moss">
+                        {option.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {step === "pricingModel" ? (
                   <button
-                    className={`border p-6 text-left transition hover:border-copper hover:bg-paper ${
-                      pricingModel === option.value
-                        ? "border-ink bg-paper shadow-lifted"
-                        : "border-ink/12 bg-paper/70"
-                    }`}
-                    key={option.value}
-                    onClick={() => {
-                      onPricingModelChange(option.value);
-                      onComplete();
-                    }}
+                    className="mx-auto mt-6 block text-sm font-extrabold text-moss transition hover:text-copper"
+                    onClick={() => setStep("salesMotion")}
                     type="button"
                   >
-                    <span className="block text-2xl font-extrabold text-ink">
-                      {option.label}
-                    </span>
-                    <span className="mt-3 block text-base font-semibold leading-7 text-moss">
-                      {option.description}
-                    </span>
+                    Back to sales motion
                   </button>
-                ))}
-              </div>
-            </div>
-          )}
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
       </section>
     </main>
@@ -396,9 +425,9 @@ function KpiStrip({ diagnosis }: { diagnosis: Diagnosis }) {
   ];
 
   return (
-    <div className="grid gap-px overflow-hidden border border-ink/10 bg-ink/10 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="mx-auto grid max-w-6xl gap-px overflow-hidden border border-ink/10 bg-ink/10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {items.map((item) => (
-        <div key={item.label} className="bg-paper px-4 py-4">
+        <div key={item.label} className="bg-paper px-4 py-5 text-center">
           <p className="text-xs font-extrabold uppercase text-moss/75">
             {item.label}
           </p>
@@ -443,17 +472,17 @@ function ScoreBoard({ diagnosis }: { diagnosis: Diagnosis }) {
 
 function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
   return (
-    <section className="space-y-8" aria-live="polite">
-      <div className="border border-ink/15 bg-ink text-paper shadow-lifted">
+    <section className="space-y-10 report-fade-in" aria-live="polite">
+      <div className="mx-auto max-w-6xl border border-ink/15 bg-ink text-paper shadow-lifted">
         <div className="grid gap-0 lg:grid-cols-[1fr_320px]">
-          <div className="p-6 sm:p-8">
+          <div className="p-6 text-center sm:p-8 lg:text-left">
             <p className="text-xs font-extrabold uppercase text-paper/65">
               Primary bottleneck
             </p>
-            <h2 className="mt-3 font-display text-5xl font-bold leading-none sm:text-6xl">
+            <h2 className="mt-3 font-display text-4xl font-bold leading-[0.98] sm:text-6xl">
               {diagnosis.report.primaryBottleneck}
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-paper/82">
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-paper/82 lg:mx-0">
               {diagnosis.report.whySelected}
             </p>
             <div className="mt-7 border-t border-paper/18 pt-6">
@@ -466,11 +495,11 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
               </p>
             </div>
           </div>
-          <div className="border-t border-paper/12 p-6 lg:border-l lg:border-t-0">
+          <div className="border-t border-paper/12 p-6 text-center lg:border-l lg:border-t-0 lg:text-left">
             <p className="text-xs font-extrabold uppercase text-paper/55">
               Diagnosis prepared by
             </p>
-            <AgencyMark className="mt-5 aspect-square w-36 border border-paper/12 sm:w-44" />
+            <AgencyMark className="mx-auto mt-5 aspect-square w-36 border border-paper/12 sm:w-44 lg:mx-0" />
             <p className="mt-5 text-sm font-bold leading-6 text-paper/68">
               The Kreator Syndicate turns creator expertise into sharper funnels,
               cleaner offers, and measurable revenue systems.
@@ -479,9 +508,17 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
         </div>
       </div>
 
-      <KpiStrip diagnosis={diagnosis} />
+      <section className="text-center">
+        <h3 className="text-3xl font-extrabold text-ink">Your KPI dashboard</h3>
+        <p className="mx-auto mt-3 max-w-xl text-sm font-bold leading-6 text-moss">
+          The fastest read on where revenue is created, delayed, and lost.
+        </p>
+        <div className="mt-6">
+          <KpiStrip diagnosis={diagnosis} />
+        </div>
+      </section>
 
-      <div className="grid gap-7 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="mx-auto grid max-w-6xl gap-7 lg:grid-cols-[0.9fr_1.1fr]">
         <section className="border border-ink/12 bg-paper/82 p-6">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
@@ -519,7 +556,7 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
         </section>
       </div>
 
-      <section className="border-y border-ink/15 py-8">
+      <section className="mx-auto max-w-6xl border-y border-ink/15 py-8">
         <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr]">
           <div>
             <p className="text-xs font-extrabold uppercase text-copper">
@@ -547,7 +584,7 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
         </div>
       </section>
 
-      <section className="space-y-5">
+      <section className="mx-auto max-w-6xl space-y-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-extrabold uppercase text-copper">
@@ -580,7 +617,7 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
         </div>
       </section>
 
-      <footer className="grid gap-4 border-t border-ink/15 pt-6 sm:grid-cols-[220px_1fr] sm:items-center">
+      <footer className="mx-auto grid max-w-6xl gap-4 border-t border-ink/15 pt-6 sm:grid-cols-[220px_1fr] sm:items-center">
         <AgencyMark className="aspect-square w-28 border border-ink/10 sm:w-32" />
         <p className="text-sm font-bold leading-6 text-moss sm:text-right">
           Revenue Bottleneck Finder by The Kreator Syndicate.
@@ -600,6 +637,7 @@ export function RevenueBottleneckFinder() {
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
+  const [goalMrr, setGoalMrr] = useState("50000");
 
   const activeFields = useMemo(
     () => getFields(pricingModel, salesMotion),
@@ -623,7 +661,7 @@ export function RevenueBottleneckFinder() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    setDiagnosis(diagnoseBusiness(toMetrics(values, pricingModel, salesMotion)));
+    setDiagnosis(diagnoseBusiness(toMetrics(values, pricingModel, salesMotion), Number.parseFloat(goalMrr) || 50000));
     window.requestAnimationFrame(() => {
       document.getElementById("report")?.scrollIntoView({ behavior: "smooth" });
     });
@@ -632,7 +670,8 @@ export function RevenueBottleneckFinder() {
   if (!setupComplete) {
     return (
       <SetupQuestionnaire
-        onComplete={() => {
+        onComplete={(value) => {
+          setGoalMrr(value);
           setDiagnosis(null);
           setSubmitted(false);
           setSetupComplete(true);
@@ -646,8 +685,13 @@ export function RevenueBottleneckFinder() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-4 border-b border-ink/12 pb-5 sm:flex-row sm:items-center sm:justify-between">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 py-5 page-fade-in sm:px-6 lg:px-8">
+        <style jsx>{`
+          .topbar-bg {
+            background: rgba(247, 243, 234, 0.88);
+          }
+        `}</style>
+        <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-ink/12 topbar-bg pb-5 pt-1 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <AgencyMark
             className="aspect-square w-20 border border-ink/10 sm:w-24"
@@ -677,76 +721,91 @@ export function RevenueBottleneckFinder() {
               Change business type
             </span>
             <span className="mt-1 block text-sm font-extrabold text-spruce">
-              {salesMotion === "salesCall" ? "Sales calls" : "No sales calls"} ·{" "}
+              {salesMotion === "salesCall" ? "Sales calls" : "No sales calls"} /{" "}
               {pricingModel === "recurring" ? "Monthly program" : "One-time offer"}
             </span>
           </button>
         </div>
       </header>
 
-      <section className="grid flex-1 gap-8 py-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 lg:py-12">
-        <div className="flex flex-col justify-between gap-8">
-          <div>
-            <p className="text-xs font-extrabold uppercase text-copper">
-              For coaches, consultants, and course creators
+      <section className="flex flex-1 flex-col items-center gap-8 py-8 lg:py-12">
+        <div className="w-full max-w-4xl text-center">
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-copper">
+            For coaches, consultants, and course creators
+          </p>
+          <h1 className="mx-auto mt-4 max-w-4xl font-display text-5xl font-bold leading-[0.95] text-ink sm:text-6xl lg:text-7xl">
+            Find the revenue leak hiding in plain sight.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg font-medium leading-8 text-ink/72">
+            Enter {inputCountCopy} current numbers. Get KPIs, a bottleneck diagnosis,
+            revenue impact, and a focused 30-day plan.
+          </p>
+          <div className="mx-auto mt-7 max-w-2xl border border-ink/12 bg-paper/72 p-5">
+            <p className="text-sm font-extrabold uppercase text-ink">
+              A Kreator Syndicate diagnostic
             </p>
-            <h1 className="mt-4 font-display text-6xl font-bold leading-[0.9] text-ink sm:text-7xl lg:text-8xl">
-              Find the revenue leak hiding in plain sight.
-            </h1>
-            <p className="mt-6 max-w-xl text-lg font-medium leading-8 text-ink/72">
-              Enter {inputCountCopy} current numbers and get a personalized bottleneck report:
-              KPIs, benchmark gap, revenue impact, and a focused 30-day roadmap.
+            <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-moss">
+              Built for expert-led businesses deciding what to fix before spending
+              more on traffic, team, or tooling.
             </p>
-            <div className="mt-7 max-w-xl border-l-4 border-ink bg-paper/70 p-5">
-              <p className="text-sm font-extrabold uppercase text-ink">
-                A Kreator Syndicate diagnostic
-              </p>
-              <p className="mt-2 text-sm font-bold leading-6 text-moss">
-                Built for expert-led businesses that need to know exactly which
-                part of the funnel deserves the next hour, dollar, or hire.
-              </p>
-            </div>
           </div>
+        </div>
 
-          <div className="grid gap-4 border-y border-ink/12 py-5 sm:grid-cols-3">
-            <div>
-              <p className="text-3xl font-extrabold text-ink">{completion}%</p>
-              <p className="mt-1 text-sm font-bold text-moss">Inputs complete</p>
-            </div>
-            <div>
-              <p className="text-3xl font-extrabold text-ink">6</p>
-              <p className="mt-1 text-sm font-bold text-moss">KPIs calculated</p>
-            </div>
-            <div>
-              <p className="text-3xl font-extrabold text-ink">30</p>
-              <p className="mt-1 text-sm font-bold text-moss">Day roadmap</p>
-            </div>
+        <div className="grid w-full max-w-3xl gap-4 border-y border-ink/12 py-5 text-center sm:grid-cols-3">
+          <div>
+            <p className="text-3xl font-extrabold text-ink">{completion}%</p>
+            <p className="mt-1 text-sm font-bold text-moss">Inputs complete</p>
+          </div>
+          <div>
+            <p className="text-3xl font-extrabold text-ink">6</p>
+            <p className="mt-1 text-sm font-bold text-moss">KPIs calculated</p>
+          </div>
+          <div>
+            <p className="text-3xl font-extrabold text-ink">30</p>
+            <p className="mt-1 text-sm font-bold text-moss">Day roadmap</p>
           </div>
         </div>
 
         <form
-          className="border border-ink/15 bg-paper/88 p-5 shadow-lifted sm:p-7"
+          className="w-full max-w-4xl border border-ink/15 bg-paper/88 p-5 shadow-lifted sm:p-7"
           onSubmit={handleSubmit}
         >
-          <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <p className="text-xs font-extrabold uppercase text-copper">
-                Diagnostic inputs
-              </p>
-              <h2 className="mt-2 text-3xl font-extrabold text-ink">
-                Your current funnel
-              </h2>
-            </div>
-            <p className="text-sm font-bold text-moss">Estimates are fine.</p>
+          <div className="mb-6 text-center">
+            <p className="text-xs font-extrabold uppercase text-copper">
+              Diagnostic inputs
+            </p>
+            <h2 className="mt-2 text-3xl font-extrabold text-ink">
+              Your current funnel
+            </h2>
+            <p className="mt-2 text-sm font-bold text-moss">Estimates are fine.</p>
           </div>
 
-          <div className="mb-6 grid gap-3 border border-ink/10 bg-paper/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="mb-6 grid gap-3 border border-ink/10 bg-paper/60 p-4 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
             <p className="text-sm font-bold leading-6 text-moss">
               {revenueFormulaCopy}
             </p>
             <p className="text-2xl font-extrabold text-ink">
               {formatCurrency(previewMonthlyRevenue)}
             </p>
+          </div>
+
+          <div className="mb-6 grid gap-3 border border-dashed border-ink/15 bg-limewash/20 p-4 text-center sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4 sm:text-left">
+            <p className="text-sm font-bold leading-6 text-moss">
+              Benchmarks are back-calculated from your monthly revenue goal
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-extrabold text-moss">$</span>
+              <input
+                className="number-input h-10 w-28 border border-ink/15 bg-paper px-2 text-center text-lg font-extrabold text-ink"
+                inputMode="decimal"
+                min={0}
+                onChange={(e) => setGoalMrr(e.target.value)}
+                type="number"
+                value={goalMrr}
+              />
+              <span className="text-xs font-bold text-moss/70">/mo</span>
+            </div>
+            <p className="text-xs font-bold text-ink/40">Adjustable</p>
           </div>
 
           <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">

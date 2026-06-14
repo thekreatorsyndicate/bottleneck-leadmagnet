@@ -67,6 +67,18 @@ export type RoadmapPhase = {
   actions: string[];
 };
 
+export type GoalBenchmarks = {
+  targetMonthlyRevenue: number;
+  targetNewClientsPerMonth: number;
+  targetLeadsPerMonth: number;
+  targetOpportunitiesPerMonth: number;
+  targetCloseRate: number;
+  targetLifespanMonths: number;
+  targetUpsellPercent: number;
+  targetAttendanceRate: number;
+  expectedRevenuePerLead: number;
+};
+
 export type Diagnosis = {
   metrics: BusinessMetrics;
   kpis: Kpis;
