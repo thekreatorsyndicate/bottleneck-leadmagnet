@@ -30,6 +30,19 @@ const actions: Record<string, string[]> = {
   ],
 };
 
+const selfServeActions: Partial<Record<string, string[]>> = {
+  Conversion: [
+    "Sharpen the offer page around one urgent outcome, one clear mechanism, and one next step.",
+    "Add proof, risk reversal, and objection handling directly beside the buying decision.",
+    "Create a post-click follow-up sequence for visitors who show intent but do not buy.",
+  ],
+  Capacity: [
+    "Reduce friction between the lead capture moment and the offer page.",
+    "Add stronger bridges from content, email, or community touchpoints into the buying path.",
+    "Check the checkout path on mobile and remove avoidable steps before payment.",
+  ],
+};
+
 export function generateReport(
   primaryScore: ScoreBreakdown,
   opportunityCost: OpportunityCost,
@@ -37,12 +50,22 @@ export function generateReport(
   const estimatedImpact = formatCurrency(
     opportunityCost.monthlyRevenueLeftOnTable,
   );
+  const recommendedActions =
+    primaryScore.label === "Page to purchase" ||
+    primaryScore.label === "Lead to offer page"
+      ? selfServeActions[primaryScore.area] ?? actions[primaryScore.area]
+      : actions[primaryScore.area];
+  const roadmapVariant =
+    primaryScore.label === "Page to purchase" ||
+    primaryScore.label === "Lead to offer page"
+      ? "selfServe"
+      : "salesCall";
 
   return {
     primaryBottleneck: primaryScore.area,
     whySelected: `${primaryScore.area} scored ${primaryScore.score}/100, the lowest area in your diagnostic. ${primaryScore.rationale}`,
     revenueImpactEstimate: `${estimatedImpact}/month in estimated revenue is likely being constrained by this area.`,
-    recommendedActions: actions[primaryScore.area].slice(0, 3),
-    roadmap: generateRoadmap(primaryScore.area),
+    recommendedActions: recommendedActions.slice(0, 3),
+    roadmap: generateRoadmap(primaryScore.area, roadmapVariant),
   };
 }

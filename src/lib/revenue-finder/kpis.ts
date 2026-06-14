@@ -5,6 +5,10 @@ const divide = (numerator: number, denominator: number) =>
 
 export function calculateKpis(metrics: BusinessMetrics): Kpis {
   const clientLifespan = Math.max(metrics.averageClientLifespan, 1);
+  const salesOpportunities =
+    metrics.salesMotion === "salesCall"
+      ? metrics.salesCallsAttended
+      : metrics.salesPageVisitors;
   const newClientRevenueThisMonth =
     metrics.averageOfferPrice * metrics.newClientsAcquired;
   const calculatedMonthlyRevenue =
@@ -31,19 +35,25 @@ export function calculateKpis(metrics: BusinessMetrics): Kpis {
 
   return {
     calculatedMonthlyRevenue,
-    leadToCallRate: divide(metrics.salesCallsBooked, metrics.monthlyLeads),
+    leadToSalesStepRate: divide(
+      metrics.salesMotion === "salesCall"
+        ? metrics.salesCallsBooked
+        : metrics.salesPageVisitors,
+      metrics.monthlyLeads,
+    ),
     callAttendanceRate: divide(
       metrics.salesCallsAttended,
       metrics.salesCallsBooked,
     ),
-    callToClientRate: divide(
+    salesStepToClientRate: divide(
       metrics.newClientsAcquired,
-      metrics.salesCallsAttended,
+      salesOpportunities,
     ),
     clientLtv,
     revenuePerLead: divide(calculatedMonthlyRevenue, metrics.monthlyLeads),
     upsellPercent: divide(metrics.monthlyUpsellRevenue, calculatedMonthlyRevenue),
     estimatedActiveClients,
     monthlyRevenuePerNewClient,
+    salesOpportunities,
   };
 }

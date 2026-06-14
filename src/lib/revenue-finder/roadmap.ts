@@ -128,6 +128,64 @@ const roadmaps: Record<BottleneckArea, RoadmapPhase[]> = {
   ],
 };
 
-export function generateRoadmap(area: BottleneckArea) {
-  return roadmaps[area];
+const selfServeRoadmaps: Partial<Record<BottleneckArea, RoadmapPhase[]>> = {
+  Conversion: [
+    {
+      title: "Fix the buying page",
+      timeframe: "Days 1-7",
+      actions: [
+        "Rewrite the offer page around the clearest outcome, strongest proof, and one direct buying action.",
+        "Place objection handling, guarantee language, and fit criteria near the purchase decision.",
+      ],
+    },
+    {
+      title: "Recover high intent",
+      timeframe: "Weeks 2-3",
+      actions: [
+        "Add email follow-up for people who click through but do not purchase.",
+        "Test one checkout friction fix such as fewer fields, clearer payment options, or stronger order-page proof.",
+      ],
+    },
+    {
+      title: "Measure purchase intent",
+      timeframe: "Week 4",
+      actions: [
+        "Track sales-page visits, checkout starts, purchases, and abandoned checkouts separately.",
+      ],
+    },
+  ],
+  Capacity: [
+    {
+      title: "Bridge demand to the offer",
+      timeframe: "Days 1-7",
+      actions: [
+        "Map the path from lead capture to offer page and remove dead ends.",
+        "Add one clear next step after the opt-in, quiz result, webinar, or core nurture email.",
+      ],
+    },
+    {
+      title: "Improve buying-path flow",
+      timeframe: "Weeks 2-3",
+      actions: [
+        "Create stronger offer-page links from your highest-intent content and emails.",
+        "Segment low-intent leads into nurture and route high-intent leads directly to the offer.",
+      ],
+    },
+    {
+      title: "Protect the checkout",
+      timeframe: "Week 4",
+      actions: [
+        "Review the checkout on mobile and remove any step that does not increase confidence or completion.",
+      ],
+    },
+  ],
+};
+
+export function generateRoadmap(
+  area: BottleneckArea,
+  variant: "salesCall" | "selfServe" = "salesCall",
+) {
+  return variant === "selfServe"
+    ? selfServeRoadmaps[area] ?? roadmaps[area]
+    : roadmaps[area];
 }

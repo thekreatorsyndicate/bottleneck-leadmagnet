@@ -8,9 +8,13 @@ import type {
   BusinessMetrics,
   Diagnosis,
   PricingModel,
+  SalesMotion,
 } from "@/lib/revenue-finder/types";
 
-type NumericMetricKey = Exclude<keyof BusinessMetrics, "pricingModel">;
+type NumericMetricKey = Exclude<
+  keyof BusinessMetrics,
+  "pricingModel" | "salesMotion"
+>;
 
 type MetricField = {
   key: NumericMetricKey;
@@ -24,6 +28,7 @@ const numericMetricKeys: NumericMetricKey[] = [
   "monthlyLeads",
   "salesCallsBooked",
   "salesCallsAttended",
+  "salesPageVisitors",
   "newClientsAcquired",
   "averageOfferPrice",
   "averageClientLifespan",
@@ -31,29 +36,46 @@ const numericMetricKeys: NumericMetricKey[] = [
   "monthlyUpsellRevenue",
 ];
 
-function getFields(pricingModel: PricingModel): MetricField[] {
+function getFields(
+  pricingModel: PricingModel,
+  salesMotion: SalesMotion,
+): MetricField[] {
   const ticketLabel =
     pricingModel === "recurring" ? "Monthly program price" : "Ticket price";
+  const acquisitionLabel =
+    salesMotion === "salesCall" ? "Monthly leads" : "Monthly leads / subscribers";
+  const customerLabel =
+    salesMotion === "salesCall" ? "New clients acquired" : "New customers acquired";
 
   return [
     {
       key: "monthlyLeads",
-      label: "Monthly leads",
+      label: acquisitionLabel,
       placeholder: "180",
     },
-    {
-      key: "salesCallsBooked",
-      label: "Sales calls booked",
-      placeholder: "42",
-    },
-    {
-      key: "salesCallsAttended",
-      label: "Sales calls attended",
-      placeholder: "31",
-    },
+    ...(salesMotion === "salesCall"
+      ? [
+          {
+            key: "salesCallsBooked" as const,
+            label: "Sales calls booked",
+            placeholder: "42",
+          },
+          {
+            key: "salesCallsAttended" as const,
+            label: "Sales calls attended",
+            placeholder: "31",
+          },
+        ]
+      : [
+          {
+            key: "salesPageVisitors" as const,
+            label: "Sales page / checkout visitors",
+            placeholder: "72",
+          },
+        ]),
     {
       key: "newClientsAcquired",
-      label: "New clients acquired",
+      label: customerLabel,
       placeholder: "6",
     },
     {
@@ -98,12 +120,15 @@ const initialValues = numericMetricKeys.reduce(
 function toMetrics(
   values: Record<NumericMetricKey, string>,
   pricingModel: PricingModel,
+  salesMotion: SalesMotion,
 ): BusinessMetrics {
   return {
+    salesMotion,
     pricingModel,
     monthlyLeads: Number.parseFloat(values.monthlyLeads) || 0,
     salesCallsBooked: Number.parseFloat(values.salesCallsBooked) || 0,
     salesCallsAttended: Number.parseFloat(values.salesCallsAttended) || 0,
+    salesPageVisitors: Number.parseFloat(values.salesPageVisitors) || 0,
     newClientsAcquired: Number.parseFloat(values.newClientsAcquired) || 0,
     averageOfferPrice: Number.parseFloat(values.averageOfferPrice) || 0,
     averageClientLifespan:
@@ -183,56 +208,178 @@ function MetricInput({
   );
 }
 
-function PricingModelToggle({
-  value,
-  onChange,
+function SetupQuestionnaire({
+  pricingModel,
+  salesMotion,
+  onPricingModelChange,
+  onSalesMotionChange,
+  onComplete,
 }: {
-  value: PricingModel;
-  onChange: (value: PricingModel) => void;
+  pricingModel: PricingModel;
+  salesMotion: SalesMotion;
+  onPricingModelChange: (value: PricingModel) => void;
+  onSalesMotionChange: (value: SalesMotion) => void;
+  onComplete: () => void;
 }) {
-  return (
-    <div className="border border-ink/12 bg-limewash/35 p-1">
-      <div className="grid grid-cols-2 gap-1">
-        {[
-          { label: "One-time offer", value: "oneTime" as const },
-          { label: "Monthly program", value: "recurring" as const },
-        ].map((option) => {
-          const isSelected = value === option.value;
+  const [step, setStep] = useState<"salesMotion" | "pricingModel">(
+    "salesMotion",
+  );
 
-          return (
-            <button
-              aria-pressed={isSelected}
-              className={`min-h-12 px-3 text-sm font-extrabold transition ${
-                isSelected
-                  ? "bg-ink text-paper"
-                  : "bg-transparent text-spruce hover:bg-paper/70"
-              }`}
-              key={option.value}
-              onClick={() => onChange(option.value)}
-              type="button"
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+      <header className="flex items-center justify-between border-b border-ink/12 pb-5">
+        <div className="flex items-center gap-4">
+          <AgencyMark
+            className="aspect-square w-16 border border-ink/10 sm:w-20"
+            priority
+          />
+          <div>
+            <p className="text-sm font-extrabold uppercase text-spruce">
+              The Revenue Bottleneck Finder<span aria-hidden="true">™</span>
+            </p>
+            <p className="mt-1 text-sm font-bold text-moss">
+              Diagnostic setup
+            </p>
+          </div>
+        </div>
+        <p className="text-sm font-extrabold text-moss">
+          {step === "salesMotion" ? "1/2" : "2/2"}
+        </p>
+      </header>
+
+      <section className="flex flex-1 items-center py-10">
+        <div className="w-full">
+          <div className="mb-8 h-1 bg-ink/10">
+            <div
+              className="h-full bg-copper transition-all"
+              style={{ width: step === "salesMotion" ? "50%" : "100%" }}
+            />
+          </div>
+
+          {step === "salesMotion" ? (
+            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+              <div>
+                <p className="text-xs font-extrabold uppercase text-copper">
+                  First, your sales motion
+                </p>
+                <h1 className="mt-4 font-display text-5xl font-bold leading-none text-ink sm:text-7xl">
+                  How do people buy from you?
+                </h1>
+              </div>
+              <div className="grid gap-4">
+                {[
+                  {
+                    label: "Through sales calls",
+                    value: "salesCall" as const,
+                    description:
+                      "Prospects book a call, attend, and become clients after a conversation.",
+                  },
+                  {
+                    label: "Without sales calls",
+                    value: "selfServe" as const,
+                    description:
+                      "People buy from a page, checkout, webinar, email, or automated funnel.",
+                  },
+                ].map((option) => (
+                  <button
+                    className={`border p-6 text-left transition hover:border-copper hover:bg-paper ${
+                      salesMotion === option.value
+                        ? "border-ink bg-paper shadow-lifted"
+                        : "border-ink/12 bg-paper/70"
+                    }`}
+                    key={option.value}
+                    onClick={() => {
+                      onSalesMotionChange(option.value);
+                      setStep("pricingModel");
+                    }}
+                    type="button"
+                  >
+                    <span className="block text-2xl font-extrabold text-ink">
+                      {option.label}
+                    </span>
+                    <span className="mt-3 block text-base font-semibold leading-7 text-moss">
+                      {option.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+              <div>
+                <p className="text-xs font-extrabold uppercase text-copper">
+                  Next, your offer model
+                </p>
+                <h1 className="mt-4 font-display text-5xl font-bold leading-none text-ink sm:text-7xl">
+                  How is the core offer priced?
+                </h1>
+                <button
+                  className="mt-6 text-sm font-extrabold text-moss transition hover:text-copper"
+                  onClick={() => setStep("salesMotion")}
+                  type="button"
+                >
+                  Back to sales motion
+                </button>
+              </div>
+              <div className="grid gap-4">
+                {[
+                  {
+                    label: "One-time offer",
+                    value: "oneTime" as const,
+                    description:
+                      "A single payment, pay-in-full program, course, sprint, or package.",
+                  },
+                  {
+                    label: "Monthly program",
+                    value: "recurring" as const,
+                    description:
+                      "A membership, retainer, continuity program, subscription, or recurring offer.",
+                  },
+                ].map((option) => (
+                  <button
+                    className={`border p-6 text-left transition hover:border-copper hover:bg-paper ${
+                      pricingModel === option.value
+                        ? "border-ink bg-paper shadow-lifted"
+                        : "border-ink/12 bg-paper/70"
+                    }`}
+                    key={option.value}
+                    onClick={() => {
+                      onPricingModelChange(option.value);
+                      onComplete();
+                    }}
+                    type="button"
+                  >
+                    <span className="block text-2xl font-extrabold text-ink">
+                      {option.label}
+                    </span>
+                    <span className="mt-3 block text-base font-semibold leading-7 text-moss">
+                      {option.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }
 
 function KpiStrip({ diagnosis }: { diagnosis: Diagnosis }) {
+  const isSelfServe = diagnosis.metrics.salesMotion === "selfServe";
   const items = [
     {
       label: "Monthly revenue",
       value: formatCurrency(diagnosis.kpis.calculatedMonthlyRevenue),
     },
     {
-      label: "Lead -> Call",
-      value: formatPercent(diagnosis.kpis.leadToCallRate),
+      label: isSelfServe ? "Lead -> Page" : "Lead -> Call",
+      value: formatPercent(diagnosis.kpis.leadToSalesStepRate),
     },
     {
-      label: "Call -> Client",
-      value: formatPercent(diagnosis.kpis.callToClientRate),
+      label: isSelfServe ? "Page -> Buyer" : "Call -> Client",
+      value: formatPercent(diagnosis.kpis.salesStepToClientRate),
     },
     {
       label: "Client LTV",
@@ -444,26 +591,30 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
 }
 
 export function RevenueBottleneckFinder() {
+  const [salesMotion, setSalesMotion] =
+    useState<SalesMotion>("salesCall");
   const [pricingModel, setPricingModel] =
     useState<PricingModel>("oneTime");
   const [values, setValues] =
     useState<Record<NumericMetricKey, string>>(initialValues);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(false);
 
   const activeFields = useMemo(
-    () => getFields(pricingModel),
-    [pricingModel],
+    () => getFields(pricingModel, salesMotion),
+    [pricingModel, salesMotion],
   );
   const completedFields = activeFields.filter(
     (field) => values[field.key] !== "",
   ).length;
   const completion = Math.round((completedFields / activeFields.length) * 100);
-  const previewMetrics = toMetrics(values, pricingModel);
+  const previewMetrics = toMetrics(values, pricingModel, salesMotion);
   const previewMonthlyRevenue =
     previewMetrics.averageOfferPrice * previewMetrics.newClientsAcquired +
     previewMetrics.monthlyRecurringRevenue +
     previewMetrics.monthlyUpsellRevenue;
+  const inputCountCopy = salesMotion === "salesCall" ? "seven or eight" : "six or seven";
   const revenueFormulaCopy =
     pricingModel === "recurring"
       ? "Calculated monthly revenue uses monthly program price x new clients + recurring revenue + upsell revenue."
@@ -472,10 +623,26 @@ export function RevenueBottleneckFinder() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    setDiagnosis(diagnoseBusiness(toMetrics(values, pricingModel)));
+    setDiagnosis(diagnoseBusiness(toMetrics(values, pricingModel, salesMotion)));
     window.requestAnimationFrame(() => {
       document.getElementById("report")?.scrollIntoView({ behavior: "smooth" });
     });
+  }
+
+  if (!setupComplete) {
+    return (
+      <SetupQuestionnaire
+        onComplete={() => {
+          setDiagnosis(null);
+          setSubmitted(false);
+          setSetupComplete(true);
+        }}
+        onPricingModelChange={setPricingModel}
+        onSalesMotionChange={setSalesMotion}
+        pricingModel={pricingModel}
+        salesMotion={salesMotion}
+      />
+    );
   }
 
   return (
@@ -495,7 +662,26 @@ export function RevenueBottleneckFinder() {
             </p>
           </div>
         </div>
-        <p className="text-sm font-bold text-moss">A 5-minute revenue diagnosis</p>
+        <div className="flex flex-col gap-3 sm:items-end">
+          <p className="text-sm font-bold text-moss">A 5-minute revenue diagnosis</p>
+          <button
+            className="border border-copper/45 bg-paper/70 px-4 py-3 text-left transition hover:border-copper hover:bg-limewash/40 sm:text-right"
+            onClick={() => {
+              setDiagnosis(null);
+              setSubmitted(false);
+              setSetupComplete(false);
+            }}
+            type="button"
+          >
+            <span className="block text-xs font-extrabold uppercase text-copper">
+              Change business type
+            </span>
+            <span className="mt-1 block text-sm font-extrabold text-spruce">
+              {salesMotion === "salesCall" ? "Sales calls" : "No sales calls"} ·{" "}
+              {pricingModel === "recurring" ? "Monthly program" : "One-time offer"}
+            </span>
+          </button>
+        </div>
       </header>
 
       <section className="grid flex-1 gap-8 py-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 lg:py-12">
@@ -508,7 +694,7 @@ export function RevenueBottleneckFinder() {
               Find the revenue leak hiding in plain sight.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-medium leading-8 text-ink/72">
-              Enter seven or eight current numbers and get a personalized bottleneck report:
+              Enter {inputCountCopy} current numbers and get a personalized bottleneck report:
               KPIs, benchmark gap, revenue impact, and a focused 30-day roadmap.
             </p>
             <div className="mt-7 max-w-xl border-l-4 border-ink bg-paper/70 p-5">
@@ -554,23 +740,13 @@ export function RevenueBottleneckFinder() {
             <p className="text-sm font-bold text-moss">Estimates are fine.</p>
           </div>
 
-          <div className="mb-6 space-y-3">
-            <PricingModelToggle
-              onChange={(value) => {
-                setPricingModel(value);
-                setDiagnosis(null);
-                setSubmitted(false);
-              }}
-              value={pricingModel}
-            />
-            <div className="grid gap-3 border border-ink/10 bg-paper/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-              <p className="text-sm font-bold leading-6 text-moss">
-                {revenueFormulaCopy}
-              </p>
-              <p className="text-2xl font-extrabold text-ink">
-                {formatCurrency(previewMonthlyRevenue)}
-              </p>
-            </div>
+          <div className="mb-6 grid gap-3 border border-ink/10 bg-paper/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+            <p className="text-sm font-bold leading-6 text-moss">
+              {revenueFormulaCopy}
+            </p>
+            <p className="text-2xl font-extrabold text-ink">
+              {formatCurrency(previewMonthlyRevenue)}
+            </p>
           </div>
 
           <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">

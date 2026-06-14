@@ -24,8 +24,9 @@ export function calculateOpportunityCost(
       const benchmarkLeads = Math.max(primaryScore.benchmark, metrics.monthlyLeads);
       const additionalClients =
         positiveDelta(benchmarkLeads, metrics.monthlyLeads) *
-        kpis.leadToCallRate *
-        Math.max(kpis.callToClientRate, 0.12);
+        kpis.leadToSalesStepRate *
+        (metrics.salesMotion === "salesCall" ? kpis.callAttendanceRate : 1) *
+        Math.max(kpis.salesStepToClientRate, metrics.salesMotion === "salesCall" ? 0.12 : 0.02);
       return {
         area: primaryScore.area,
         currentPerformance: `${formatNumber(metrics.monthlyLeads)} leads/month`,
@@ -36,17 +37,24 @@ export function calculateOpportunityCost(
       };
     }
     case "Conversion": {
-      const benchmarkCloseRate = Math.max(primaryScore.benchmark, kpis.callToClientRate);
+      const benchmarkCloseRate = Math.max(
+        primaryScore.benchmark,
+        kpis.salesStepToClientRate,
+      );
       const additionalClients =
-        metrics.salesCallsAttended *
-        positiveDelta(benchmarkCloseRate, kpis.callToClientRate);
+        kpis.salesOpportunities *
+        positiveDelta(benchmarkCloseRate, kpis.salesStepToClientRate);
+      const currentLabel =
+        metrics.salesMotion === "salesCall" ? "call to client" : "page to purchase";
       return {
         area: primaryScore.area,
-        currentPerformance: `${formatPercent(kpis.callToClientRate)} call to client`,
-        benchmarkPerformance: `${formatPercent(benchmarkCloseRate)} call to client`,
+        currentPerformance: `${formatPercent(kpis.salesStepToClientRate)} ${currentLabel}`,
+        benchmarkPerformance: `${formatPercent(benchmarkCloseRate)} ${currentLabel}`,
         monthlyRevenueLeftOnTable: additionalClients * monthlyClientValue,
         explanation:
-          "This estimates the monthly value of closing attended calls at the benchmark rate with the same call volume.",
+          metrics.salesMotion === "salesCall"
+            ? "This estimates the monthly value of closing attended calls at the benchmark rate with the same call volume."
+            : "This estimates the monthly value of converting offer-page visitors at the benchmark rate with the same traffic.",
       };
     }
     case "Retention": {
@@ -91,23 +99,34 @@ export function calculateOpportunityCost(
       };
     }
     case "Capacity": {
-      const benchmarkAttendance = Math.max(
-        primaryScore.benchmark,
-        kpis.callAttendanceRate,
-      );
-      const additionalAttendedCalls =
-        metrics.salesCallsBooked *
-        positiveDelta(benchmarkAttendance, kpis.callAttendanceRate);
+      const currentCapacity =
+        metrics.salesMotion === "salesCall"
+          ? kpis.callAttendanceRate
+          : kpis.leadToSalesStepRate;
+      const benchmarkCapacity = Math.max(primaryScore.benchmark, currentCapacity);
+      const additionalSalesOpportunities =
+        (metrics.salesMotion === "salesCall"
+          ? metrics.salesCallsBooked
+          : metrics.monthlyLeads) *
+        positiveDelta(benchmarkCapacity, currentCapacity);
       return {
         area: primaryScore.area,
-        currentPerformance: `${formatPercent(kpis.callAttendanceRate)} call attendance`,
-        benchmarkPerformance: `${formatPercent(benchmarkAttendance)} call attendance`,
+        currentPerformance:
+          metrics.salesMotion === "salesCall"
+            ? `${formatPercent(kpis.callAttendanceRate)} call attendance`
+            : `${formatPercent(kpis.leadToSalesStepRate)} lead to offer page`,
+        benchmarkPerformance:
+          metrics.salesMotion === "salesCall"
+            ? `${formatPercent(benchmarkCapacity)} call attendance`
+            : `${formatPercent(benchmarkCapacity)} lead to offer page`,
         monthlyRevenueLeftOnTable:
-          additionalAttendedCalls *
-          Math.max(kpis.callToClientRate, 0.18) *
+          additionalSalesOpportunities *
+          Math.max(kpis.salesStepToClientRate, metrics.salesMotion === "salesCall" ? 0.18 : 0.02) *
           monthlyClientValue,
         explanation:
-          "This estimates the value of reclaiming booked calls that currently fail to become real sales conversations.",
+          metrics.salesMotion === "salesCall"
+            ? "This estimates the value of reclaiming booked calls that currently fail to become real sales conversations."
+            : "This estimates the value of moving more captured demand into the offer page or checkout path.",
       };
     }
   }

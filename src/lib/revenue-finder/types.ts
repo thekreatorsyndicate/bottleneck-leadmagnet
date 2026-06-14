@@ -7,11 +7,15 @@ export type BottleneckArea =
 
 export type PricingModel = "oneTime" | "recurring";
 
+export type SalesMotion = "salesCall" | "selfServe";
+
 export type BusinessMetrics = {
+  salesMotion: SalesMotion;
   pricingModel: PricingModel;
   monthlyLeads: number;
   salesCallsBooked: number;
   salesCallsAttended: number;
+  salesPageVisitors: number;
   newClientsAcquired: number;
   averageOfferPrice: number;
   averageClientLifespan: number;
@@ -21,14 +25,15 @@ export type BusinessMetrics = {
 
 export type Kpis = {
   calculatedMonthlyRevenue: number;
-  leadToCallRate: number;
+  leadToSalesStepRate: number;
   callAttendanceRate: number;
-  callToClientRate: number;
+  salesStepToClientRate: number;
   clientLtv: number;
   revenuePerLead: number;
   upsellPercent: number;
   estimatedActiveClients: number;
   monthlyRevenuePerNewClient: number;
+  salesOpportunities: number;
 };
 
 export type ScoreBreakdown = {
