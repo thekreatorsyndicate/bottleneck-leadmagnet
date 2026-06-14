@@ -1,9 +1,9 @@
-import type { BottleneckArea, BusinessMetrics, Kpis, ScoreBreakdown } from "./types";
+import type { BottleneckArea, BusinessMetrics, GoalBenchmarks, Kpis, ScoreBreakdown } from "./types";
 
 type ScoringRule = {
   area: BottleneckArea;
   label: (metrics: BusinessMetrics) => string;
-  benchmark: (metrics: BusinessMetrics) => number;
+  benchmark: (metrics: BusinessMetrics, goal: GoalBenchmarks) => number;
   getCurrent: (metrics: BusinessMetrics, kpis: Kpis) => number;
   rationale: (
     current: number,
@@ -26,16 +26,16 @@ const rules: ScoringRule[] = [
   {
     area: "Acquisition",
     label: () => "Lead volume",
-    benchmark: () => 120,
+    benchmark: (_metrics, goal) => goal.targetLeadsPerMonth,
     getCurrent: (metrics) => metrics.monthlyLeads,
     rationale: (current, benchmark) =>
-      `Your lead flow is ${Math.round((current / benchmark) * 100)}% of the V1 benchmark for a steady expert-business funnel.`,
+      `You need ~${Math.round(benchmark)} leads/month to hit your goal. You're getting ${Math.round(current)}.`,
   },
   {
     area: "Conversion",
     label: (metrics) =>
       metrics.salesMotion === "salesCall" ? "Call to client" : "Page to purchase",
-    benchmark: (metrics) => (metrics.salesMotion === "salesCall" ? 0.3 : 0.05),
+    benchmark: (_metrics, goal) => goal.targetCloseRate,
     getCurrent: (_metrics, kpis) => kpis.salesStepToClientRate,
     rationale: (_current, _benchmark, metrics) =>
       metrics.salesMotion === "salesCall"
@@ -45,7 +45,7 @@ const rules: ScoringRule[] = [
   {
     area: "Retention",
     label: () => "Client lifespan",
-    benchmark: () => 6,
+    benchmark: (_metrics, goal) => goal.targetLifespanMonths,
     getCurrent: (metrics) => metrics.averageClientLifespan,
     rationale: () =>
       "Client lifespan controls how much value each win compounds after the first sale.",
@@ -53,7 +53,7 @@ const rules: ScoringRule[] = [
   {
     area: "Ascension",
     label: () => "Upsell revenue mix",
-    benchmark: () => 0.15,
+    benchmark: (_metrics, goal) => goal.targetUpsellPercent,
     getCurrent: (_metrics, kpis) => kpis.upsellPercent,
     rationale: () =>
       "Ascension shows whether existing clients have a clear path into higher-value support.",
@@ -62,7 +62,7 @@ const rules: ScoringRule[] = [
     area: "Capacity",
     label: (metrics) =>
       metrics.salesMotion === "salesCall" ? "Call attendance" : "Lead to offer page",
-    benchmark: (metrics) => (metrics.salesMotion === "salesCall" ? 0.88 : 0.45),
+    benchmark: (_metrics, goal) => goal.targetAttendanceRate,
     getCurrent: (metrics, kpis) =>
       metrics.salesMotion === "salesCall"
         ? kpis.callAttendanceRate
@@ -77,10 +77,11 @@ const rules: ScoringRule[] = [
 export function scoreBottlenecks(
   metrics: BusinessMetrics,
   kpis: Kpis,
+  goal: GoalBenchmarks,
 ): ScoreBreakdown[] {
   return rules
     .map((rule) => {
-      const benchmark = rule.benchmark(metrics);
+      const benchmark = rule.benchmark(metrics, goal);
       const current = rule.getCurrent(metrics, kpis);
       return {
         area: rule.area,
