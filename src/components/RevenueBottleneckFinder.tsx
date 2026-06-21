@@ -4,9 +4,11 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { diagnoseBusiness } from "@/lib/revenue-finder/diagnose";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/revenue-finder/format";
+import { validateMetrics } from "@/lib/revenue-finder/validation";
 import type {
   BusinessMetrics,
   Diagnosis,
+  MetricIssue,
   PricingModel,
   SalesMotion,
 } from "@/lib/revenue-finder/types";
@@ -94,7 +96,7 @@ function getFields(
       ? [
           {
             key: "monthlyRecurringRevenue" as const,
-            label: "Monthly recurring revenue",
+            label: "Current total MRR",
             prefix: "$",
             placeholder: "12000",
           },
@@ -444,6 +446,46 @@ function KpiStrip({ diagnosis }: { diagnosis: Diagnosis }) {
   );
 }
 
+function MetricIssueList({ issues }: { issues: MetricIssue[] }) {
+  if (issues.length === 0) return null;
+
+  const errors = issues.filter((issue) => issue.severity === "error");
+  const warnings = issues.filter((issue) => issue.severity === "warning");
+
+  return (
+    <div className="space-y-3 border border-copper/35 bg-limewash/45 p-4">
+      {errors.length > 0 ? (
+        <div>
+          <p className="text-xs font-extrabold uppercase text-copper">
+            Fix before generating
+          </p>
+          <ul className="mt-2 space-y-2">
+            {errors.map((issue) => (
+              <li className="text-sm font-bold leading-6 text-ink" key={issue.message}>
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {warnings.length > 0 ? (
+        <div>
+          <p className="text-xs font-extrabold uppercase text-moss">
+            Calculation notes
+          </p>
+          <ul className="mt-2 space-y-2">
+            {warnings.map((issue) => (
+              <li className="text-sm font-semibold leading-6 text-ink/76" key={issue.message}>
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ScoreBoard({ diagnosis }: { diagnosis: Diagnosis }) {
   const orderedScores = useMemo(
     () =>
@@ -519,6 +561,9 @@ function ResultsPanel({ diagnosis }: { diagnosis: Diagnosis }) {
         <p className="mx-auto mt-3 max-w-xl text-sm font-bold leading-6 text-moss">
           The fastest read on where revenue is created, delayed, and lost.
         </p>
+        <MetricIssueList
+          issues={diagnosis.issues.filter((issue) => issue.severity === "warning")}
+        />
         <div className="mt-6">
           <KpiStrip diagnosis={diagnosis} />
         </div>
@@ -641,6 +686,7 @@ export function RevenueBottleneckFinder() {
   const [values, setValues] =
     useState<Record<NumericMetricKey, string>>(initialValues);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [metricIssues, setMetricIssues] = useState<MetricIssue[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   const [goalMrr, setGoalMrr] = useState("50000");
@@ -655,19 +701,28 @@ export function RevenueBottleneckFinder() {
   const completion = Math.round((completedFields / activeFields.length) * 100);
   const previewMetrics = toMetrics(values, pricingModel, salesMotion);
   const previewMonthlyRevenue =
-    previewMetrics.averageOfferPrice * previewMetrics.newClientsAcquired +
-    previewMetrics.monthlyRecurringRevenue +
-    previewMetrics.monthlyUpsellRevenue;
+    pricingModel === "recurring"
+      ? previewMetrics.monthlyRecurringRevenue +
+        previewMetrics.monthlyUpsellRevenue
+      : previewMetrics.averageOfferPrice * previewMetrics.newClientsAcquired +
+        previewMetrics.monthlyUpsellRevenue;
   const inputCountCopy = salesMotion === "salesCall" ? "seven or eight" : "six or seven";
   const revenueFormulaCopy =
     pricingModel === "recurring"
-      ? "Calculated monthly revenue uses monthly program price x new clients + recurring revenue + upsell revenue."
+      ? "Calculated monthly revenue uses current total MRR + upsell revenue. Monthly program price informs LTV and opportunity estimates."
       : "Calculated monthly revenue uses ticket price x new clients + upsell revenue.";
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const metrics = toMetrics(values, pricingModel, salesMotion);
+    const issues = validateMetrics(metrics);
+    setMetricIssues(issues);
     setSubmitted(true);
-    setDiagnosis(diagnoseBusiness(toMetrics(values, pricingModel, salesMotion), Number.parseFloat(goalMrr) || 50000));
+    if (issues.some((issue) => issue.severity === "error")) {
+      setDiagnosis(null);
+      return;
+    }
+    setDiagnosis(diagnoseBusiness(metrics, Number.parseFloat(goalMrr) || 50000));
     window.requestAnimationFrame(() => {
       document.getElementById("report")?.scrollIntoView({ behavior: "smooth" });
     });
@@ -679,6 +734,7 @@ export function RevenueBottleneckFinder() {
         onComplete={(value) => {
           setGoalMrr(value);
           setDiagnosis(null);
+          setMetricIssues([]);
           setSubmitted(false);
           setSetupComplete(true);
         }}
@@ -718,6 +774,7 @@ export function RevenueBottleneckFinder() {
             className="border border-copper/45 bg-paper/70 px-4 py-3 text-left transition hover:border-copper hover:bg-limewash/40 sm:text-right"
             onClick={() => {
               setDiagnosis(null);
+              setMetricIssues([]);
               setSubmitted(false);
               setSetupComplete(false);
             }}
@@ -820,14 +877,19 @@ export function RevenueBottleneckFinder() {
             <p className="text-xs font-bold text-ink/40">Adjustable</p>
           </div>
 
+          <div className="mb-6">
+            <MetricIssueList issues={metricIssues} />
+          </div>
+
           <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
             {activeFields.map((field) => (
               <MetricInput
                 field={field}
                 key={field.key}
-                onChange={(value) =>
-                  setValues((current) => ({ ...current, [field.key]: value }))
-                }
+                onChange={(value) => {
+                  setValues((current) => ({ ...current, [field.key]: value }));
+                  setMetricIssues([]);
+                }}
                 value={values[field.key]}
               />
             ))}

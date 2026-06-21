@@ -23,11 +23,20 @@ export type BusinessMetrics = {
   monthlyUpsellRevenue: number;
 };
 
+export type MetricIssue = {
+  severity: "error" | "warning";
+  message: string;
+};
+
 export type Kpis = {
   calculatedMonthlyRevenue: number;
   leadToSalesStepRate: number;
   callAttendanceRate: number;
   salesStepToClientRate: number;
+  rawLeadToSalesStepRate: number;
+  rawCallAttendanceRate: number;
+  rawSalesStepToClientRate: number;
+  rawUpsellPercent: number;
   clientLtv: number;
   revenuePerLead: number;
   upsellPercent: number;
@@ -86,4 +95,5 @@ export type Diagnosis = {
   primaryScore: ScoreBreakdown;
   opportunityCost: OpportunityCost;
   report: Report;
+  issues: MetricIssue[];
 };

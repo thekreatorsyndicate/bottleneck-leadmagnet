@@ -11,15 +11,23 @@ type ScoringRule = {
     metrics: BusinessMetrics,
   ) => string;
   higherIsBetter?: boolean;
+  applies?: (metrics: BusinessMetrics, kpis: Kpis) => boolean;
 };
 
 const clampScore = (value: number) =>
   Math.max(0, Math.min(100, Math.round(value)));
 
 const ratioScore = (current: number, benchmark: number, higherIsBetter = true) => {
-  if (benchmark <= 0) return 100;
+  if (benchmark <= 0 || !Number.isFinite(current)) return 100;
   const ratio = higherIsBetter ? current / benchmark : benchmark / current;
   return clampScore(ratio * 100);
+};
+
+export const getSelfServePurchaseBenchmark = (metrics: BusinessMetrics) => {
+  if (metrics.averageOfferPrice < 500) return 0.04;
+  if (metrics.averageOfferPrice <= 1000) return 0.015;
+  if (metrics.averageOfferPrice <= 2000) return 0.0075;
+  return 0.003;
 };
 
 const rules: ScoringRule[] = [
@@ -40,15 +48,24 @@ const rules: ScoringRule[] = [
     rationale: (_current, _benchmark, metrics) =>
       metrics.salesMotion === "salesCall"
         ? "The sales conversation is where booked demand turns into new client revenue."
-        : "The offer page is where captured demand turns into buyers without a sales conversation.",
+        : "The offer page is judged against a price-sensitive purchase benchmark, because high-ticket courses and low-ticket products should not be scored the same way.",
   },
   {
     area: "Retention",
-    label: () => "Client lifespan",
+    label: (metrics) =>
+      metrics.pricingModel === "recurring"
+        ? "Client lifespan"
+        : "Continuity potential",
     benchmark: (_metrics, goal) => goal.targetLifespanMonths,
     getCurrent: (metrics) => metrics.averageClientLifespan,
-    rationale: () =>
-      "Client lifespan controls how much value each win compounds after the first sale.",
+    applies: (metrics) =>
+      metrics.pricingModel === "recurring" ||
+      metrics.salesMotion === "salesCall" ||
+      metrics.monthlyUpsellRevenue > 0,
+    rationale: (_current, _benchmark, metrics) =>
+      metrics.pricingModel === "recurring"
+        ? "Client lifespan translates churn into LTV, so recurring offers are benchmarked against a healthier retention window."
+        : "Continuity is only scored when the offer has a meaningful post-purchase relationship or expansion path.",
   },
   {
     area: "Ascension",
@@ -80,6 +97,7 @@ export function scoreBottlenecks(
   goal: GoalBenchmarks,
 ): ScoreBreakdown[] {
   return rules
+    .filter((rule) => rule.applies?.(metrics, kpis) ?? true)
     .map((rule) => {
       const benchmark = rule.benchmark(metrics, goal);
       const current = rule.getCurrent(metrics, kpis);

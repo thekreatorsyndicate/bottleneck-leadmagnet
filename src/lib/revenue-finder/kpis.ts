@@ -8,10 +8,15 @@ import {
 } from "./benchmarks";
 
 const divide = (numerator: number, denominator: number) =>
-  denominator > 0 ? numerator / denominator : 0;
+  denominator > 0 && Number.isFinite(numerator) && Number.isFinite(denominator)
+    ? numerator / denominator
+    : 0;
+
+const clampRate = (value: number) =>
+  Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 
 export function calculateKpis(metrics: BusinessMetrics): Kpis {
-  const clientLifespan = Math.max(metrics.averageClientLifespan, 1);
+  const clientLifespan = Math.max(metrics.averageClientLifespan, 0);
   const salesOpportunities =
     metrics.salesMotion === "salesCall"
       ? metrics.salesCallsAttended
@@ -19,13 +24,18 @@ export function calculateKpis(metrics: BusinessMetrics): Kpis {
   const newClientRevenueThisMonth =
     metrics.averageOfferPrice * metrics.newClientsAcquired;
   const calculatedMonthlyRevenue =
-    newClientRevenueThisMonth +
-    metrics.monthlyRecurringRevenue +
-    metrics.monthlyUpsellRevenue;
+    metrics.pricingModel === "recurring"
+      ? metrics.monthlyRecurringRevenue + metrics.monthlyUpsellRevenue
+      : newClientRevenueThisMonth + metrics.monthlyUpsellRevenue;
+  const activeClientsFromMrr = divide(
+    metrics.monthlyRecurringRevenue,
+    metrics.averageOfferPrice,
+  );
   const estimatedActiveClients = Math.max(
+    metrics.pricingModel === "recurring" ? activeClientsFromMrr : 0,
     metrics.newClientsAcquired * clientLifespan,
     metrics.newClientsAcquired,
-    1,
+    0,
   );
   const monthlyUpsellPerClient = divide(
     metrics.monthlyUpsellRevenue,
@@ -39,26 +49,37 @@ export function calculateKpis(metrics: BusinessMetrics): Kpis {
     coreOfferLtv + monthlyUpsellPerClient * clientLifespan;
   const monthlyRevenuePerNewClient =
     metrics.averageOfferPrice + monthlyUpsellPerClient;
+  const rawLeadToSalesStepRate = divide(
+    metrics.salesMotion === "salesCall"
+      ? metrics.salesCallsBooked
+      : metrics.salesPageVisitors,
+    metrics.monthlyLeads,
+  );
+  const rawCallAttendanceRate = divide(
+    metrics.salesCallsAttended,
+    metrics.salesCallsBooked,
+  );
+  const rawSalesStepToClientRate = divide(
+    metrics.newClientsAcquired,
+    salesOpportunities,
+  );
+  const rawUpsellPercent = divide(
+    metrics.monthlyUpsellRevenue,
+    calculatedMonthlyRevenue,
+  );
 
   return {
     calculatedMonthlyRevenue,
-    leadToSalesStepRate: divide(
-      metrics.salesMotion === "salesCall"
-        ? metrics.salesCallsBooked
-        : metrics.salesPageVisitors,
-      metrics.monthlyLeads,
-    ),
-    callAttendanceRate: divide(
-      metrics.salesCallsAttended,
-      metrics.salesCallsBooked,
-    ),
-    salesStepToClientRate: divide(
-      metrics.newClientsAcquired,
-      salesOpportunities,
-    ),
+    leadToSalesStepRate: clampRate(rawLeadToSalesStepRate),
+    callAttendanceRate: clampRate(rawCallAttendanceRate),
+    salesStepToClientRate: clampRate(rawSalesStepToClientRate),
+    rawLeadToSalesStepRate,
+    rawCallAttendanceRate,
+    rawSalesStepToClientRate,
+    rawUpsellPercent,
     clientLtv,
     revenuePerLead: divide(calculatedMonthlyRevenue, metrics.monthlyLeads),
-    upsellPercent: divide(metrics.monthlyUpsellRevenue, calculatedMonthlyRevenue),
+    upsellPercent: clampRate(rawUpsellPercent),
     estimatedActiveClients,
     monthlyRevenuePerNewClient,
     salesOpportunities,
@@ -93,7 +114,10 @@ export function calculateGoalBenchmarks(
   const targetLeadsPerMonth =
     targetOpportunitiesPerMonth / Math.max(expectedLeadToOppRate, 0.001);
 
-  const expectedLifespan = getExpectedLifespan(metrics.averageOfferPrice);
+  const expectedLifespan =
+    metrics.pricingModel === "recurring"
+      ? getExpectedLifespan(metrics.averageOfferPrice)
+      : 3;
   const expectedUpsellPct = getExpectedUpsellPercent(
     metrics.averageOfferPrice,
   );

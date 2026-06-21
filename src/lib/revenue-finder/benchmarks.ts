@@ -12,17 +12,16 @@ export function getPriceTier(price: number): PriceTier {
 
 export function getExpectedCloseRate(price: number, motion: SalesMotion): number {
   if (motion === "salesCall") {
-    if (price < 100) return 0.275;
-    if (price < 500) return 0.275;
-    if (price < 2000) return 0.325;
-    if (price < 10000) return 0.35;
+    if (price < 100) return 0.20;
+    if (price < 500) return 0.25;
+    if (price < 2000) return 0.30;
+    if (price < 10000) return 0.30;
     return 0.30;
   }
-  if (price < 100) return 0.05;
-  if (price < 500) return 0.03;
-  if (price < 2000) return 0.0175;
-  if (price < 10000) return 0.011;
-  return 0.005;
+  if (price < 500) return 0.04;
+  if (price < 1000) return 0.015;
+  if (price < 2000) return 0.0075;
+  return 0.003;
 }
 
 export function getExpectedLeadToOpportunityRate(
@@ -48,11 +47,8 @@ export function getExpectedAttendanceRate(
   motion: SalesMotion,
 ): number {
   if (motion === "salesCall") {
-    if (price < 100) return 0.80;
-    if (price < 500) return 0.80;
-    if (price < 2000) return 0.85;
-    if (price < 10000) return 0.88;
-    return 0.90;
+    if (price < 500) return 0.75;
+    return 0.78;
   }
   return getExpectedLeadToOpportunityRate(price, motion);
 }

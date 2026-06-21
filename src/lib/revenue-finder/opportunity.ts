@@ -9,31 +9,43 @@ import type {
 const positiveDelta = (next: number, current: number) =>
   Math.max(0, next - current);
 
+const conservativeRate = (current: number, fallback: number) =>
+  current > 0 ? current : fallback;
+
 export function calculateOpportunityCost(
   metrics: BusinessMetrics,
   kpis: Kpis,
   primaryScore: ScoreBreakdown,
 ): OpportunityCost {
-  const monthlyClientValue = Math.max(
-    kpis.monthlyRevenuePerNewClient,
-    metrics.averageOfferPrice / Math.max(metrics.averageClientLifespan, 1),
-  );
+  const monthlyClientValue = kpis.monthlyRevenuePerNewClient;
 
   switch (primaryScore.area) {
     case "Acquisition": {
       const benchmarkLeads = Math.max(primaryScore.benchmark, metrics.monthlyLeads);
+      const salesStepRate = conservativeRate(
+        kpis.leadToSalesStepRate,
+        metrics.salesMotion === "salesCall" ? 0.2 : 0.25,
+      );
+      const attendanceRate =
+        metrics.salesMotion === "salesCall"
+          ? conservativeRate(kpis.callAttendanceRate, 0.65)
+          : 1;
+      const closeRate = conservativeRate(
+        kpis.salesStepToClientRate,
+        metrics.salesMotion === "salesCall" ? 0.15 : primaryScore.benchmark,
+      );
       const additionalClients =
         positiveDelta(benchmarkLeads, metrics.monthlyLeads) *
-        kpis.leadToSalesStepRate *
-        (metrics.salesMotion === "salesCall" ? kpis.callAttendanceRate : 1) *
-        Math.max(kpis.salesStepToClientRate, metrics.salesMotion === "salesCall" ? 0.12 : 0.02);
+        salesStepRate *
+        attendanceRate *
+        closeRate;
       return {
         area: primaryScore.area,
         currentPerformance: `${formatNumber(metrics.monthlyLeads)} leads/month`,
         benchmarkPerformance: `${formatNumber(benchmarkLeads)} leads/month`,
         monthlyRevenueLeftOnTable: additionalClients * monthlyClientValue,
         explanation:
-          "This estimates the value of bringing lead volume up to the benchmark while keeping your current funnel mechanics intact.",
+          "This estimates the value of bringing lead volume up to the benchmark. When downstream data is missing, it uses conservative funnel assumptions instead of showing zero opportunity.",
       };
     }
     case "Conversion": {
@@ -64,7 +76,9 @@ export function calculateOpportunityCost(
       );
       const currentLtv = kpis.clientLtv;
       const monthlyUpsellPerClient =
-        metrics.monthlyUpsellRevenue / Math.max(kpis.estimatedActiveClients, 1);
+        kpis.estimatedActiveClients > 0
+          ? metrics.monthlyUpsellRevenue / kpis.estimatedActiveClients
+          : 0;
       const benchmarkLtv =
         (metrics.pricingModel === "recurring"
           ? metrics.averageOfferPrice * benchmarkLifespan
@@ -75,11 +89,16 @@ export function calculateOpportunityCost(
         currentPerformance: `${formatNumber(metrics.averageClientLifespan)} month lifespan`,
         benchmarkPerformance: `${formatNumber(benchmarkLifespan)} month lifespan`,
         monthlyRevenueLeftOnTable:
-          metrics.newClientsAcquired *
-          positiveDelta(benchmarkLtv, currentLtv) /
-          Math.max(benchmarkLifespan, 1),
+          metrics.pricingModel === "recurring" ||
+          metrics.monthlyUpsellRevenue > 0
+            ? metrics.newClientsAcquired *
+              positiveDelta(benchmarkLtv, currentLtv) /
+              Math.max(benchmarkLifespan, 1)
+            : 0,
         explanation:
-          "This estimates how much recurring monthly value improves when each new client stays longer.",
+          metrics.pricingModel === "recurring"
+            ? "This estimates how much recurring monthly value improves when each new client stays longer."
+            : "For one-time offers, longer delivery only creates new monthly revenue when there is a continuity or expansion path.",
       };
     }
     case "Ascension": {
@@ -87,15 +106,23 @@ export function calculateOpportunityCost(
         primaryScore.benchmark,
         kpis.upsellPercent,
       );
+      const coreRevenue = Math.max(
+        0,
+        kpis.calculatedMonthlyRevenue - metrics.monthlyUpsellRevenue,
+      );
+      const targetUpsellRevenue =
+        benchmarkUpsellPercent >= 1
+          ? metrics.monthlyUpsellRevenue
+          : (coreRevenue * benchmarkUpsellPercent) /
+            Math.max(1 - benchmarkUpsellPercent, 0.01);
       return {
         area: primaryScore.area,
         currentPerformance: `${formatPercent(kpis.upsellPercent)} upsell mix`,
         benchmarkPerformance: `${formatPercent(benchmarkUpsellPercent)} upsell mix`,
         monthlyRevenueLeftOnTable:
-          kpis.calculatedMonthlyRevenue *
-          positiveDelta(benchmarkUpsellPercent, kpis.upsellPercent),
+          positiveDelta(targetUpsellRevenue, metrics.monthlyUpsellRevenue),
         explanation:
-          "This estimates the extra monthly revenue available if existing clients ascended at the benchmark mix.",
+          "This estimates the extra expansion revenue needed for upsells to become the benchmark share of total monthly revenue.",
       };
     }
     case "Capacity": {
