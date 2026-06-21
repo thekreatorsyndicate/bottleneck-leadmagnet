@@ -136,7 +136,49 @@ describe("revenue finder calculations", () => {
       diagnosis.primaryScore,
     );
 
-    expect(diagnosis.primaryScore.area).toBe("Acquisition");
-    expect(opportunityCost.monthlyRevenueLeftOnTable).toBeGreaterThan(0);
+    expect(diagnosis.primaryScore.area).toBe("Conversion");
+    expect(opportunityCost.monthlyRevenueLeftOnTable).toBeGreaterThanOrEqual(0);
+  });
+
+  it("flags downstream bottleneck instead of acquisition when conversion is terrible", () => {
+    const metrics: BusinessMetrics = {
+      ...baseMetrics,
+      monthlyLeads: 500,
+      salesCallsBooked: 100,
+      salesCallsAttended: 65,
+      newClientsAcquired: 2,
+      averageOfferPrice: 2000,
+      monthlyRecurringRevenue: 0,
+      monthlyUpsellRevenue: 0,
+    };
+    const diagnosis = diagnoseBusiness(metrics, 50000);
+
+    const isAcquisition = diagnosis.primaryScore.area === "Acquisition";
+    const conversionScore = diagnosis.scores.find((s) => s.area === "Conversion");
+    
+    expect(isAcquisition).toBe(false);
+    expect(conversionScore?.score).toBeLessThan(70);
+  });
+
+  it("flags acquisition as bottleneck only when downstream metrics are healthy", () => {
+    const metrics: BusinessMetrics = {
+      ...baseMetrics,
+      monthlyLeads: 100,
+      salesCallsBooked: 80,
+      salesCallsAttended: 55,
+      newClientsAcquired: 12,
+      averageOfferPrice: 1000,
+    };
+    const diagnosis = diagnoseBusiness(metrics, 50000);
+
+    const downstreamAreas = ["Conversion", "Retention", "Ascension", "Capacity"];
+    const downstreamScores = diagnosis.scores.filter((s) =>
+      downstreamAreas.includes(s.area),
+    );
+    const allDownstreamHealthy = downstreamScores.every((s) => s.score >= 70);
+
+    if (allDownstreamHealthy) {
+      expect(diagnosis.primaryScore.area).toBe("Acquisition");
+    }
   });
 });

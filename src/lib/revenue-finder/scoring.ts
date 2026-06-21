@@ -14,6 +14,8 @@ type ScoringRule = {
   applies?: (metrics: BusinessMetrics, kpis: Kpis) => boolean;
 };
 
+const BOTTLENECK_THRESHOLD = 70;
+
 const clampScore = (value: number) =>
   Math.max(0, Math.min(100, Math.round(value)));
 
@@ -96,7 +98,7 @@ export function scoreBottlenecks(
   kpis: Kpis,
   goal: GoalBenchmarks,
 ): ScoreBreakdown[] {
-  return rules
+  const allScores = rules
     .filter((rule) => rule.applies?.(metrics, kpis) ?? true)
     .map((rule) => {
       const benchmark = rule.benchmark(metrics, goal);
@@ -109,6 +111,44 @@ export function scoreBottlenecks(
         label: rule.label(metrics),
         rationale: rule.rationale(current, benchmark, metrics),
       };
-    })
-    .sort((a, b) => a.score - b.score);
+    });
+
+  const primaryBottleneck = determinePrimaryBottleneck(allScores);
+  
+  const sortedScores = allScores.sort((a, b) => {
+    if (a.area === primaryBottleneck.area) return -1;
+    if (b.area === primaryBottleneck.area) return 1;
+    return a.score - b.score;
+  });
+
+  return sortedScores;
+}
+
+export function determinePrimaryBottleneck(
+  scores: ScoreBreakdown[],
+): ScoreBreakdown {
+  const downstreamAreas = ["Conversion", "Retention", "Ascension", "Capacity"];
+  
+  const downstreamScores = scores.filter((s) =>
+    downstreamAreas.includes(s.area),
+  );
+  
+  const unhealthyDownstream = downstreamScores.filter(
+    (s) => s.score < BOTTLENECK_THRESHOLD,
+  );
+  
+  if (unhealthyDownstream.length > 0) {
+    return unhealthyDownstream.reduce((lowest, current) =>
+      current.score < lowest.score ? current : lowest,
+    );
+  }
+  
+  const acquisitionScore = scores.find((s) => s.area === "Acquisition");
+  if (acquisitionScore) {
+    return acquisitionScore;
+  }
+  
+  return scores.reduce((lowest, current) =>
+    current.score < lowest.score ? current : lowest,
+  );
 }
