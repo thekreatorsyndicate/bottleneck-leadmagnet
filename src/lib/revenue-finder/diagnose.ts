@@ -5,6 +5,7 @@ import { scoreBottlenecks } from "./scoring";
 import type { BusinessMetrics, Diagnosis } from "./types";
 
 export function diagnoseBusiness(metrics: BusinessMetrics, goalMrr = 50000): Diagnosis {
+  goalMrr = Math.min(goalMrr, 999999);
   const kpis = calculateKpis(metrics);
   const goal = calculateGoalBenchmarks(metrics, kpis, goalMrr);
   const scores = scoreBottlenecks(metrics, kpis, goal);

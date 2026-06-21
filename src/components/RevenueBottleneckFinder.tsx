@@ -327,7 +327,13 @@ function SetupQuestionnaire({
                     className="number-input h-16 w-full bg-transparent text-center text-3xl font-extrabold text-ink placeholder:text-ink/25"
                     inputMode="decimal"
                     min={0}
-                    onChange={(e) => setLocalGoalMrr(e.target.value)}
+                    max={999999}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || Number.parseFloat(val) <= 999999) {
+                        setLocalGoalMrr(val);
+                      }
+                    }}
                     placeholder="50000"
                     type="number"
                     value={localGoalMrr}
@@ -799,7 +805,13 @@ export function RevenueBottleneckFinder() {
                 className="number-input h-10 w-28 border border-ink/15 bg-paper px-2 text-center text-lg font-extrabold text-ink"
                 inputMode="decimal"
                 min={0}
-                onChange={(e) => setGoalMrr(e.target.value)}
+                max={999999}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || Number.parseFloat(val) <= 999999) {
+                    setGoalMrr(val);
+                  }
+                }}
                 type="number"
                 value={goalMrr}
               />
